@@ -30,11 +30,13 @@ def parse_args():
 	parser.add_argument("--video_in", default="", help="Run ffmpeg first to convert a provided video file into a set of images. Uses the video_fps parameter also.")
 	parser.add_argument("--video_fps", default=2)
 	parser.add_argument("--time_slice", default="", help="Time (in seconds) in the format t1,t2 within which the images should be generated from the video. E.g.: \"--time_slice '10,300'\" will generate images only from 10th second to 300th second of the video.")
+	parser.add_argument("--hdr", action="store_true", help="Convert HDR video to SDR images.")
 	parser.add_argument("--run_colmap", action="store_true", help="run colmap first on the image folder")
 	parser.add_argument("--colmap_matcher", default="sequential", choices=["exhaustive","sequential","spatial","transitive","vocab_tree"], help="Select which matcher colmap should use. Sequential for videos, exhaustive for ad-hoc images.")
 	parser.add_argument("--colmap_db", default="colmap.db", help="colmap database filename")
 	parser.add_argument("--colmap_camera_model", default="OPENCV", choices=["SIMPLE_PINHOLE", "PINHOLE", "SIMPLE_RADIAL", "RADIAL", "OPENCV", "SIMPLE_RADIAL_FISHEYE", "RADIAL_FISHEYE", "OPENCV_FISHEYE"], help="Camera model")
 	parser.add_argument("--colmap_camera_params", default="", help="Intrinsic parameters, depending on the chosen model. Format: fx,fy,cx,cy,dist")
+	parser.add_argument("--colmap_use_gpu", action="store_true", help="Use GPU for feature extraction and matching.")
 	parser.add_argument("--images", default="images", help="Input path to the images.")
 	parser.add_argument("--text", default="colmap_text", help="Input path to the colmap text files (set automatically if --run_colmap is used).")
 	parser.add_argument("--aabb_scale", default=32, choices=["1", "2", "4", "8", "16", "32", "64", "128"], help="Large scene scale factor. 1=scene fits in unit cube; power of 2 up to 128")
@@ -90,7 +92,12 @@ def run_ffmpeg(args):
 	if time_slice:
 		start, end = time_slice.split(",")
 		time_slice_value = f",select='between(t\,{start}\,{end})'"
-	do_system(f"{ffmpeg_binary} -i {video} -qscale:v 1 -qmin 1 -vf \"fps={fps}{time_slice_value}\" {images}/%04d.jpg")
+
+	hdr_to_sdr = ""
+	if args.hdr:
+		hdr_to_sdr = ",zscale=t=linear:npl=100,tonemap=hable:desat=0,zscale=transfer=bt709:matrix=bt709:primaries=bt709,format=yuv420p"
+
+	do_system(f"{ffmpeg_binary} -i {video} -q:v 1 -qmin 1 -fps_mode vfr -vf \"fps={fps}{time_slice_value}{hdr_to_sdr}\" {images}/%04d.jpg")
 
 def run_colmap(args):
 	colmap_binary = "colmap"
@@ -120,8 +127,8 @@ def run_colmap(args):
 		sys.exit(1)
 	if os.path.exists(db):
 		os.remove(db)
-	do_system(f"{colmap_binary} feature_extractor --ImageReader.camera_model {args.colmap_camera_model} --ImageReader.camera_params \"{args.colmap_camera_params}\" --SiftExtraction.estimate_affine_shape=true --SiftExtraction.domain_size_pooling=true --ImageReader.single_camera 1 --database_path {db} --image_path {images}")
-	match_cmd = f"{colmap_binary} {args.colmap_matcher}_matcher --SiftMatching.guided_matching=true --database_path {db}"
+	do_system(f"{colmap_binary} feature_extractor --ImageReader.camera_model {args.colmap_camera_model} --ImageReader.camera_params \"{args.colmap_camera_params}\" --SiftExtraction.estimate_affine_shape=true --SiftExtraction.domain_size_pooling=true --SiftExtraction.use_gpu={args.colmap_use_gpu} --ImageReader.single_camera=true --database_path {db} --image_path {images}")
+	match_cmd = f"{colmap_binary} {args.colmap_matcher}_matcher --SiftMatching.guided_matching=true --SiftMatching.use_gpu={args.colmap_use_gpu} --database_path {db}"
 	if args.vocab_path:
 		match_cmd += f" --VocabTreeMatching.vocab_tree_path {args.vocab_path}"
 	do_system(match_cmd)
@@ -131,7 +138,7 @@ def run_colmap(args):
 		pass
 	do_system(f"mkdir {sparse}")
 	do_system(f"{colmap_binary} mapper --database_path {db} --image_path {images} --output_path {sparse}")
-	do_system(f"{colmap_binary} bundle_adjuster --input_path {sparse}/0 --output_path {sparse}/0 --BundleAdjustment.refine_principal_point 1")
+	do_system(f"{colmap_binary} bundle_adjuster --input_path {sparse}/0 --output_path {sparse}/0 --BundleAdjustment.refine_principal_point=true")
 	try:
 		shutil.rmtree(text)
 	except:
