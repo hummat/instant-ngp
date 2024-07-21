@@ -39,7 +39,8 @@ def parse_args():
 	parser.add_argument("--colmap_use_gpu", action="store_true", help="Use GPU for feature extraction and matching.")
 	parser.add_argument("--images", default="images", help="Input path to the images.")
 	parser.add_argument("--text", default="colmap_text", help="Input path to the colmap text files (set automatically if --run_colmap is used).")
-	parser.add_argument("--aabb_scale", default=32, choices=["1", "2", "4", "8", "16", "32", "64", "128"], help="Large scene scale factor. 1=scene fits in unit cube; power of 2 up to 128")
+	parser.add_argument("--aabb_scale", default=32, choices=["1", "2", "4", "8", "16", "32", "64", "128"], help="Large scene scale factor. 1=scene fits in unit cube; power of 2 up to 128.")
+	parser.add_argument("--appear_embed_dim", default=0, choices=[0, 2, 4, 8, 16, 32], help="Dimension of per-image 'latent' appearance code to deal with inconsinstent auto-exposure or white-balance. 0=disable; 16 recommended.")
 	parser.add_argument("--skip_early", default=0, help="Skip this many images from the start.")
 	parser.add_argument("--keep_colmap_coords", action="store_true", help="Keep transforms.json in COLMAP's original frame of reference (this will avoid reorienting and repositioning the scene for preview and rendering).")
 	parser.add_argument("--out", default="transforms.json", help="Output JSON file path.")
@@ -204,6 +205,7 @@ if __name__ == "__main__":
 	if args.run_colmap:
 		run_colmap(args)
 	AABB_SCALE = int(args.aabb_scale)
+	APPEAR_EMBED_DIM = int(args.appear_embed_dim)
 	SKIP_EARLY = int(args.skip_early)
 	IMAGE_FOLDER = args.images
 	TEXT_FOLDER = args.text
@@ -330,6 +332,8 @@ if __name__ == "__main__":
 				"frames": [],
 				"aabb_scale": AABB_SCALE
 			}
+		if APPEAR_EMBED_DIM > 0:
+			out["n_extra_learnable_dims"] = APPEAR_EMBED_DIM
 
 		up = np.zeros(3)
 		for line in f:
