@@ -96,7 +96,7 @@ def run_ffmpeg(args):
 	time_slice = args.time_slice
 	if time_slice:
 		start, end = time_slice.split(",")
-		time_slice_value = f",select='between(t\,{start}\,{end})'"
+		time_slice_value = f",select='between(t,{start},{end})'"
 
 	hdr_to_sdr = ""
 	if args.hdr:
@@ -215,8 +215,6 @@ def main():
 		run_ffmpeg(args)
 	if args.run_colmap:
 		run_colmap(args)
-	else:
-		return
 
 	AABB_SCALE = int(args.aabb_scale)
 	APPEAR_EMBED_DIM = int(args.appear_embed_dim)
