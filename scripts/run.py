@@ -41,6 +41,11 @@ def parse_args():
 	parser.add_argument("--near_distance", default=-1, type=float, help="Set the distance from the camera at which training rays start for nerf. <0 means use ngp default")
 	parser.add_argument("--exposure", default=0.0, type=float, help="Controls the brightness of the image. Positive numbers increase brightness, negative numbers decrease it.")
 
+	parser.add_argument("--train_mode", default="", type=str, help="The training mode to use. Can be 'nerf', 'rfl', 'rfl_relax'. If not specified, the default mode will be used.")
+	parser.add_argument("--rfl_warmup_steps", type=int, default=1000, help="Number of steps to train in NeRF mode before switching to RFL mode. Default is 1000. Only used if --train_mode is set to 'rfl'.")
+	parser.add_argument("--rflrelax_begin_step", type=int, default=15000, help="First training step in which RflRelax mode is used. Default is 15000. Only used if --train_mode is set to 'rflrelax'.")
+	parser.add_argument("--rflrelax_end_step", type=int, default=30000, help="Last training step in which RflRelax mode is used. Default is 30000. Only used if --train_mode is set to 'rflrelax'.")
+
 	parser.add_argument("--screenshot_transforms", default="", help="Path to a nerf style transforms.json from which to save screenshots.")
 	parser.add_argument("--screenshot_frames", nargs="*", help="Which frame(s) to take screenshots of.")
 	parser.add_argument("--screenshot_dir", default="", help="Which directory to output screenshots to.")
@@ -138,8 +143,6 @@ if __name__ == "__main__":
 	testbed.shall_train = args.train if args.gui else True
 
 
-	testbed.nerf.render_with_lens_distortion = True
-
 	network_stem = os.path.splitext(os.path.basename(args.network))[0] if args.network else "base"
 	if testbed.mode == ngp.TestbedMode.Sdf:
 		setup_colored_sdf(testbed, args.scene)
@@ -147,6 +150,16 @@ if __name__ == "__main__":
 	if args.near_distance >= 0.0:
 		print("NeRF training ray near_distance ", args.near_distance)
 		testbed.nerf.training.near_distance = args.near_distance
+
+	if args.train_mode:
+		if args.train_mode.lower() == "nerf":
+			testbed.nerf.training.train_mode = ngp.TrainMode.Nerf
+		elif args.train_mode.lower() == "rfl":
+			testbed.nerf.training.train_mode = ngp.TrainMode.Rfl
+		elif args.train_mode.lower() == "rfl_relax" or args.train_mode.lower() == "rflrelax":
+			testbed.nerf.training.train_mode = ngp.TrainMode.RflRelax
+		else:
+			raise ValueError(f"Unknown train mode: {args.train_mode}")
 
 	if args.nerf_compatibility:
 		print(f"NeRF compatibility mode enabled")
@@ -169,6 +182,12 @@ if __name__ == "__main__":
 		# Match nerf paper behaviour and train on a fixed bg.
 		testbed.nerf.training.random_bg_color = False
 
+		# Ensure that the training mode is set to NeRF.
+		if testbed.nerf.training.train_mode != ngp.TrainMode.Nerf:
+			print(f"Warning: forcing train mode to NeRF for nerf compatibility (was {testbed.nerf.training.train_mode})")
+		testbed.nerf.training.train_mode = ngp.TrainMode.Nerf
+
+
 	old_training_step = 0
 	n_steps = args.n_steps
 
@@ -178,12 +197,21 @@ if __name__ == "__main__":
 	if n_steps < 0 and (not args.load_snapshot or args.gui):
 		n_steps = 35000
 
+	original_train_mode = ngp.TrainMode(testbed.nerf.training.train_mode)
+	prev_train_mode = original_train_mode
+	use_training_schedule = True
+
 	tqdm_last_update = 0
 	if n_steps > 0:
 		with tqdm(desc="Training", total=n_steps, unit="steps") as t:
 			while testbed.frame():
+				if prev_train_mode != testbed.nerf.training.train_mode and use_training_schedule:
+					print("Disabling Rfl/RflRelax training schedule due to UI train mode change")
+					use_training_schedule = False
+
 				if testbed.want_repl():
 					repl(testbed)
+
 				# What will happen when training is done?
 				if testbed.training_step >= n_steps:
 					if args.gui:
@@ -196,12 +224,31 @@ if __name__ == "__main__":
 					old_training_step = 0
 					t.reset()
 
+				# Rfl-relax training schedule
+				if use_training_schedule:
+					if original_train_mode == ngp.TrainMode.RflRelax:
+						# By default only enable RflRelax mode in the middle of training. Start with NeRF mode,
+						# then switch to RflRelax mode to "sueface-ify" the scene, then switch back to NeRF mode
+						# at the very and for fine tuning.
+						if args.rflrelax_begin_step <= testbed.training_step < args.rflrelax_end_step:
+							testbed.nerf.training.train_mode = ngp.TrainMode.RflRelax
+						else:
+							testbed.nerf.training.train_mode = ngp.TrainMode.Nerf
+					elif original_train_mode == ngp.TrainMode.Rfl:
+						# Start in NeRF mode, then switch to RFL mode after a warmup period
+						if testbed.training_step > args.rfl_warmup_steps:
+							testbed.nerf.training.train_mode = ngp.TrainMode.Rfl
+						else:
+							testbed.nerf.training.train_mode = ngp.TrainMode.Nerf
+
 				now = time.monotonic()
 				if now - tqdm_last_update > 0.1:
 					t.update(testbed.training_step - old_training_step)
 					t.set_postfix(loss=testbed.loss)
 					old_training_step = testbed.training_step
 					tqdm_last_update = now
+
+				prev_train_mode = ngp.TrainMode(testbed.nerf.training.train_mode)
 
 	if args.save_snapshot:
 		os.makedirs(os.path.dirname(args.save_snapshot), exist_ok=True)
@@ -231,6 +278,8 @@ if __name__ == "__main__":
 
 		testbed.shall_train = False
 		testbed.load_training_data(args.test_transforms)
+
+		testbed.render_with_lens_distortion = True
 
 		with tqdm(range(testbed.nerf.training.dataset.n_images), unit="images", desc=f"Rendering test frame") as t:
 			for i in t:
@@ -274,6 +323,7 @@ if __name__ == "__main__":
 		testbed.compute_and_save_marching_cubes_mesh(args.save_mesh, [res, res, res], thresh=thresh)
 
 	if ref_transforms:
+		# TODO: load lens & screen center from ref_transforms
 		testbed.fov_axis = 0
 		testbed.fov = ref_transforms["camera_angle_x"] * 180 / np.pi
 		if not args.screenshot_frames:
@@ -281,7 +331,14 @@ if __name__ == "__main__":
 		print(args.screenshot_frames)
 		for idx in args.screenshot_frames:
 			f = ref_transforms["frames"][int(idx)]
-			cam_matrix = f.get("transform_matrix", f["transform_matrix_start"])
+
+			if 'transform_matrix' in f:
+				cam_matrix = f['transform_matrix']
+			elif 'transform_matrix_start' in f:
+				cam_matrix = f['transform_matrix_start']
+			else:
+				raise KeyError("Missing both 'transform_matrix' and 'transform_matrix_start'")
+
 			testbed.set_nerf_camera_matrix(np.matrix(cam_matrix)[:-1,:])
 			outname = os.path.join(args.screenshot_dir, os.path.basename(f["file_path"]))
 

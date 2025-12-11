@@ -228,10 +228,10 @@ void read_lens(const nlohmann::json& json, Lens& lens, vec2& principal_point, ve
 
 	if (json.contains("latlong")) {
 		mode = ELensMode::LatLong;
-	}
-
-	if (json.contains("equirectangular")) {
+	} else if (json.contains("equirectangular")) {
 		mode = ELensMode::Equirectangular;
+	} else if (json.contains("orthographic")) {
+		mode = ELensMode::Orthographic;
 	}
 
 	// If there was an outer distortion mode, don't override it with nothing.
@@ -439,6 +439,10 @@ NerfDataset load_nerf(const std::vector<fs::path>& jsonpaths, float sharpen_amou
 
 		if (json.contains("normal_mts_args")) {
 			result.from_mitsuba = true;
+		}
+
+		if (json.contains("from_mitsuba")) {
+			result.from_mitsuba = bool(json["from_mitsuba"]);
 		}
 
 		if (json.contains("fix_premult")) {

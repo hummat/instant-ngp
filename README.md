@@ -19,6 +19,7 @@ For business inquiries, please submit the [NVIDIA research licensing form](https
 
 If you have Windows, download one of the following releases corresponding to your graphics card and extract it. Then, start `instant-ngp.exe`.
 
+- [**RTX 5000 series** and other Blackwell cards](https://github.com/NVlabs/instant-ngp/releases/download/continuous/Instant-NGP-for-RTX-5000.zip)
 - [**RTX 3000 & 4000 series, RTX A4000&ndash;A6000**, and other Ampere & Ada cards](https://github.com/NVlabs/instant-ngp/releases/download/continuous/Instant-NGP-for-RTX-3000-and-4000.zip)
 - [**RTX 2000 series, Titan RTX, Quadro RTX 4000&ndash;8000**, and other Turing cards](https://github.com/NVlabs/instant-ngp/releases/download/continuous/Instant-NGP-for-RTX-2000.zip)
 - [**GTX 1000 series, Titan Xp, Quadro P1000&ndash;P6000**, and other Pascal cards](https://github.com/NVlabs/instant-ngp/releases/download/continuous/Instant-NGP-for-GTX-1000.zip)
@@ -161,7 +162,7 @@ In VR, you have the following controls.
   - __Windows:__ CUDA 11.5 or higher
   - __Linux:__ CUDA 10.2 or higher
 - __[CMake](https://cmake.org/) v3.21 or higher__.
-- __(optional) [Python](https://www.python.org/) 3.7 or higher__ for interactive bindings. Also, run `pip install -r requirements.txt`.
+- __(optional) [Python](https://www.python.org/) 3.8 or higher__ for interactive bindings. Also, run `pip install -r requirements.txt`.
 - __(optional) [OptiX](https://developer.nvidia.com/optix) 7.6 or higher__ for faster mesh SDF training.
 - __(optional) [Vulkan SDK](https://vulkan.lunarg.com/)__ for DLSS support.
 
@@ -360,4 +361,3 @@ Many thanks to the authors of these brilliant projects!
 Copyright © 2022, NVIDIA Corporation. All rights reserved.
 
 This work is made available under the Nvidia Source Code License-NC. Click [here](LICENSE.txt) to view a copy of this license.
-
