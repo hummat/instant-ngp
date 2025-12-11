@@ -1,17 +1,17 @@
 import setuptools
-import platform
 
 from distutils.command.build_ext import build_ext
 
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
+
 # Adapted from https://github.com/pybind/python_example/blob/master/setup.py
 class get_pybind_include(object):
     """Helper class to determine the pybind11 include path
     The purpose of this class is to postpone importing pybind11
     until it is actually installed, so that the ``get_include()``
-    method can be invoked. """
+    method can be invoked."""
 
     def __init__(self, user=False, pep517=False):
         self.user = user
@@ -53,6 +53,7 @@ copt = {"unix": ["-std=c++11"], "gcc": ["-std=c++11"], "clang": ["std=c++11"]}
 
 # ext_compile_args = ["-std=c++11"]
 # ext_link_args = []
+
 
 # https://stackoverflow.com/questions/724664/python-distutils-how-to-get-a-compiler-that-is-going-to-be-used
 class build_ext_subclass(build_ext):

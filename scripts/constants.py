@@ -13,10 +13,10 @@ from pathlib import Path
 
 
 PAPER_FOLDER = Path(__file__).resolve().parent.parent
-SUPPL_FOLDER = PAPER_FOLDER/"supplemental"
-SCRIPTS_FOLDER = PAPER_FOLDER/"scripts"
-TEMPLATE_FOLDER = SCRIPTS_FOLDER/"template"
-DATA_FOLDER = SCRIPTS_FOLDER/"data"
+SUPPL_FOLDER = PAPER_FOLDER / "supplemental"
+SCRIPTS_FOLDER = PAPER_FOLDER / "scripts"
+TEMPLATE_FOLDER = SCRIPTS_FOLDER / "template"
+DATA_FOLDER = SCRIPTS_FOLDER / "data"
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 RESULTS_DIR = os.path.join(ROOT_DIR, "results")

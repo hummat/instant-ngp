@@ -37,13 +37,13 @@ assert len(attrib.normals) % 3 == 0
 # texcoords data must be `uvuvuv...`
 assert len(attrib.texcoords) % 2 == 0
 
-for (i, v) in enumerate(attrib.vertices):
+for i, v in enumerate(attrib.vertices):
     print("v[{}] = {}".format(i, v))
 
-for (i, v) in enumerate(attrib.normals):
+for i, v in enumerate(attrib.normals):
     print("vn[{}] = {}".format(i, v))
 
-for (i, v) in enumerate(attrib.texcoords):
+for i, v in enumerate(attrib.texcoords):
     print("vt[{}] = {}".format(i, t))
 
 print("numpy_vertices = {}".format(attrib.numpy_vertices()))
@@ -69,7 +69,7 @@ print("Num shapes: ", len(shapes))
 for shape in shapes:
     print(shape.name)
     print("len(num_indices) = {}".format(len(shape.mesh.indices)))
-    for (i, idx) in enumerate(shape.mesh.indices):
+    for i, idx in enumerate(shape.mesh.indices):
         print("[{}] v_idx {}".format(i, idx.vertex_index))
         print("[{}] vn_idx {}".format(i, idx.normal_index))
         print("[{}] vt_idx {}".format(i, idx.texcoord_index))
