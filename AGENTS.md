@@ -27,6 +27,7 @@
   cmake --build build --config RelWithDebInfo -j4
   ```
 - If linking fails with `/usr/bin/ld: cannot find -lcudart`, inspect `/mnt/work/cuda-12.4-linux/targets/x86_64-linux/lib/libcudart.so*`. Broken `unsupported reparse tag` symlinks should be replaced with normal relative links to `libcudart.so.12.4.99`.
+- If runtime JIT fails with `nvrtc: error: failed to open libnvrtc-builtins.so.12.4`, inspect both `/mnt/work/cuda-12.4-linux/lib64/libnvrtc-builtins.so*` and `/mnt/work/cuda-12.4-linux/targets/x86_64-linux/lib/libnvrtc-builtins.so*`. The local CUDA tree needs exact `libnvrtc-builtins.so.12.4 -> libnvrtc-builtins.so.12.4.99` and `libnvrtc.so.12.4 -> libnvrtc.so.12.4.99` symlinks in `lib64`; the target lib dir should have normal relative symlinks too.
 - The repo-local `.python-version` can make bare `python`/pyenv shims fail with `pyenv: version 'ngp' is not installed`. For utility scripts that only need OpenCV/NumPy, `/mnt/work/git/mini-mesh/.venv/bin/python` is known-good.
 - `colmap` for local reconstruction work is available at `/mnt/work/git/mini-mesh/.local/mini-mesh/bin/colmap`.
 
