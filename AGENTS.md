@@ -15,6 +15,42 @@
 - Python environment: `pip install -r requirements.txt`
 - Run via Python bindings: `python scripts/run.py --scene fox` (or another scene/config).
 
+## Local Workstation Notes
+
+- Source `/home/matthias/build_cuda.zsh` before configuring or building here. It selects CUDA 12.4 at `/mnt/work/cuda-12.4-linux`, `gcc-12`/`g++-12`, `CUDAHOSTCXX=g++-12`, OptiX 8.1, and `TORCH_CUDA_ARCH_LIST=8.9`.
+- For the local RTX 4070, configure explicitly for Ada: `cmake --fresh . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DTCNN_CUDA_ARCHITECTURES=89`. Do not rely on GPU auto-detection; it has fallen back to `75;86` in this checkout.
+- A verified clean build sequence is:
+  ```bash
+  source /home/matthias/build_cuda.zsh
+  cmake --fresh . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DTCNN_CUDA_ARCHITECTURES=89
+  cmake --build build --target clean
+  cmake --build build --config RelWithDebInfo -j4
+  ```
+- If linking fails with `/usr/bin/ld: cannot find -lcudart`, inspect `/mnt/work/cuda-12.4-linux/targets/x86_64-linux/lib/libcudart.so*`. Broken `unsupported reparse tag` symlinks should be replaced with normal relative links to `libcudart.so.12.4.99`.
+- The repo-local `.python-version` can make bare `python`/pyenv shims fail with `pyenv: version 'ngp' is not installed`. For utility scripts that only need OpenCV/NumPy, `/mnt/work/git/mini-mesh/.venv/bin/python` is known-good.
+- `colmap` for local reconstruction work is available at `/mnt/work/git/mini-mesh/.local/mini-mesh/bin/colmap`.
+
+## Local COLMAP/NeRF Workflow Notes
+
+- For a folder that already has `transforms.json` and matching image paths, run the GUI directly: `./instant-ngp /path/to/dataset` or `./instant-ngp /path/to/transforms.json`.
+- To convert an existing COLMAP binary model for instant-ngp, export text first:
+  ```bash
+  mkdir -p /path/to/data/colmap_text
+  /mnt/work/git/mini-mesh/.local/mini-mesh/bin/colmap model_converter \
+    --input_path /path/to/data/sparse \
+    --output_path /path/to/data/colmap_text \
+    --output_type TXT
+  /mnt/work/git/mini-mesh/.venv/bin/python scripts/colmap2nerf.py \
+    --images images_orig \
+    --text colmap_text \
+    --out transforms_colmap2nerf.json \
+    --aabb_scale 32 \
+    --appear_embed_dim 16
+  ```
+- Match `--images` to the image names in `colmap_text/images.txt`. Nerfstudio-style folders may have `images/frame_00001.jpg`, while raw COLMAP exports may refer to `0001.jpg` under `images_orig/`.
+- For real captures, start with `aabb_scale: 32`; larger natural scenes may need `64` or `128`, while tight object captures can often use less. `--appear_embed_dim 16` writes `n_extra_learnable_dims: 16` and is useful for phone video exposure or white-balance variation.
+- Old `digital-minis` history used NVLabs instant-ngp mainly as a fast preview step before Neuralangelo: generate `transforms.json` with `colmap2nerf.py`, then run `/path/to/instant-ngp/instant-ngp .` to verify the capture reconstructs before committing to slower mesh training.
+
 ## Coding Style & Naming Conventions
 
 - C++/CUDA: C++14, follow existing style. Preserve tabs/spacing; do not mass‑reformat.
